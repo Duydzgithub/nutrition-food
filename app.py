@@ -33,6 +33,11 @@ CORS(
 COHERE_API_KEY = os.environ.get('COHERE_API_KEY', '')
 PAT = os.environ.get('CLARIFAI_PAT', '')  # Clarifai PAT
 CALORIE_API_KEY = os.environ.get('CALORIE_API_KEY', '')
+# Ngưỡng tin cậy cho nhận diện (mặc định 0.4 = 40%)
+try:
+    MIN_CONFIDENCE = float(os.environ.get('MIN_CONFIDENCE', '0.4'))
+except Exception:
+    MIN_CONFIDENCE = 0.4
 
 # Health check / root endpoint (tránh 404 khi truy cập URL gốc trên Render)
 @app.route('/', methods=['GET'])
@@ -99,7 +104,46 @@ def predict():
         concepts = model_prediction.outputs[0].data.concepts
         if not concepts:
             return jsonify({'error': 'No food detected'}), 200
+        # Lấy best prediction
         food_name = concepts[0].name
+        probability = float(concepts[0].value)
+
+        # Nếu độ tin cậy < ngưỡng, trả báo cáo hướng dẫn người dùng
+        if probability < MIN_CONFIDENCE:
+            # Lấy top-3 gợi ý để người dùng tham khảo
+            top_alternatives = []
+            for c in concepts[:3]:
+                try:
+                    top_alternatives.append({
+                        'name': c.name,
+                        'probability': float(c.value)
+                    })
+                except Exception:
+                    # Bỏ qua mục lỗi định dạng
+                    pass
+
+            user_message = (
+                f"Nhận diện có độ tin cậy thấp ({probability:.0%} < {MIN_CONFIDENCE:.0%}).\n"
+                "Gợi ý để cải thiện kết quả: \n"
+                "- Chụp gần hơn, đủ sáng, hạn chế bóng đổ.\n"
+                "- Đặt món ăn trên nền đơn giản, không bị che khuất.\n"
+                "- Chỉ để 1 món chính trong khung hình (tránh nhiều món trộn).\n"
+                "Bạn có thể chọn một trong các gợi ý bên dưới hoặc nhập tên món vào chatbot để tra cứu dinh dưỡng."
+            )
+
+            return jsonify({
+                'low_confidence': True,
+                'min_confidence': MIN_CONFIDENCE,
+                'food_name': food_name,
+                'probability': probability,
+                'alternatives': top_alternatives,
+                'message': user_message,
+                'nutrition': None,
+                'ai_answer': (
+                    "Hệ thống chưa đủ chắc chắn để đưa ra tư vấn dinh dưỡng. "
+                    "Hãy thử chụp lại ảnh rõ hơn hoặc nhập tên món ăn để tôi hỗ trợ."
+                )
+            }), 200
         # Call CalorieNinjas
         nutrition = None
         if CALORIE_API_KEY:
@@ -142,9 +186,11 @@ def predict():
 
         return jsonify({
             'food_name': food_name,
-            'probability': concepts[0].value,
+            'probability': probability,
             'nutrition': nutrition,
-            'ai_answer': ai_answer
+            'ai_answer': ai_answer,
+            'low_confidence': False,
+            'min_confidence': MIN_CONFIDENCE
         })
     except Exception as e:
         print(f"[PREDICT] Lỗi tổng: {str(e)}")
