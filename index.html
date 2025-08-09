@@ -50,6 +50,11 @@
       <span id="chatbotTitle">🤖 FoodNinja AI Chatbot</span>
       <button id="closeChatbot" class="chatbot-close" aria-label="Đóng">×</button>
     </div>
+    <div class="chatbot-tools">
+      <button id="toggleHistory" class="btn btn-accent btn-small" type="button">Lịch sử</button>
+      <button id="clearHistory" class="btn btn-accent btn-small" type="button" title="Xoá lịch sử chat trong trình duyệt">Xoá</button>
+    </div>
+    <div id="chatHistoryPanel" class="chat-history hidden" aria-hidden="true"></div>
     <div id="chatbotMessages" class="chatbot-messages">
       <div class="chatbot-msg chatbot-msg-ai">Xin chào! Bạn muốn hỏi gì về ẩm thực, sức khỏe, công nghệ?</div>
     </div>
@@ -57,6 +62,12 @@
       <input type="text" id="chatbotInput" class="chatbot-input" placeholder="Nhập câu hỏi cho AI..." required />
       <button type="submit" class="btn btn-main">Gửi</button>
     </form>
+  </div>
+
+  <!-- Install banner (PWA) cố định dưới màn hình -->
+  <div id="installBanner" class="install-banner hidden" role="region" aria-label="Cài đặt ứng dụng">
+    <div class="install-text">Cài đặt FoodNinja để dùng như ứng dụng</div>
+    <button id="installBtn" class="btn btn-main btn-install" type="button">Tải ứng dụng</button>
   </div>
 
   <!-- Optional: override API base in config.js by setting window.API_BASE -->
