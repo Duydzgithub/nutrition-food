@@ -6,6 +6,8 @@
   <title>FoodNinja - Nhận diện món ăn</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="modern.css" />
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
 </head>
 <body>
   <div class="container">
@@ -60,5 +62,12 @@
   <!-- Optional: override API base in config.js by setting window.API_BASE -->
   <script src="config.js" defer></script>
   <script src="main.js" defer></script>
+  <script defer>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js').catch(console.error);
+      });
+    }
+  </script>
 </body>
 </html>
