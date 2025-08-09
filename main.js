@@ -20,6 +20,26 @@ const resultDiv = document.getElementById('result');
 const imagePreview = document.getElementById('imagePreview');
 const mediaWrapper = document.querySelector('.media-frame-wrapper');
 let imageBlob = null;
+// PWA install hooks
+let deferredPrompt = null;
+const installBanner = document.getElementById('installBanner');
+const installBtn = document.getElementById('installBtn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (installBanner) installBanner.classList.remove('hidden');
+});
+if (installBtn) {
+  installBtn.onclick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    if (installBanner) installBanner.classList.add('hidden');
+    console.log('[FoodNinja] install outcome:', outcome);
+  };
+}
 
 // Hiển thị preview ảnh khi chọn file
 imageInput.onchange = () => {
@@ -116,7 +136,12 @@ async function sendImage(blob) {
     if (data.error) {
       resultDiv.innerHTML = '<span style="color:#FF6347;">Lỗi: ' + escapeHtml(data.error) + '</span>';
     } else {
-      let html = `<b><span class="food-icon">🍎</span> Món ăn:</b> <span style="color:#388E3C;">${escapeHtml(data.food_name || '')}</span> <span style="font-size:0.95em;">(Xác suất: ${((data.probability||0)*100).toFixed(2)}%)</span><br>`;
+      const prob = (data.probability || 0);
+      if (prob < 0.4) {
+        resultDiv.innerHTML = '<span style="color:#FF6347;">Không nhận diện được, vui lòng thử lại!</span>';
+        return;
+      }
+      let html = `<b><span class="food-icon">🍎</span> Món ăn:</b> <span style="color:#388E3C;">${escapeHtml(data.food_name || '')}</span> <span style="font-size:0.95em;">(Xác suất: ${(prob*100).toFixed(2)}%)</span><br>`;
       if (data.nutrition && data.nutrition.items && data.nutrition.items.length > 0) {
         html += '<b>🥗 Thông tin dinh dưỡng:</b><ul>';
         for (const [key, value] of Object.entries(data.nutrition.items[0])) {
@@ -150,6 +175,45 @@ const closeChatbotBtn = document.getElementById('closeChatbot');
 const chatbotForm = document.getElementById('chatbotForm');
 const chatbotInput = document.getElementById('chatbotInput');
 const chatbotMessages = document.getElementById('chatbotMessages');
+const chatHistoryPanel = document.getElementById('chatHistoryPanel');
+const toggleHistoryBtn = document.getElementById('toggleHistory');
+const clearHistoryBtn = document.getElementById('clearHistory');
+
+// Chat history persistence in localStorage
+const CHAT_HISTORY_KEY = 'foodninja_chat_history_v1';
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(CHAT_HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+function saveHistory(items) {
+  try { localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(items.slice(-100))); } catch {}
+}
+function renderHistoryPanel() {
+  if (!chatHistoryPanel) return;
+  const items = loadHistory();
+  if (items.length === 0) {
+    chatHistoryPanel.innerHTML = '<div style="color:#888;">Chưa có lịch sử.</div>';
+    return;
+  }
+  chatHistoryPanel.innerHTML = items.map(it => `<div class="chatbot-msg ${it.role==='user'?'chatbot-msg-user':'chatbot-msg-ai'}">${escapeHtml(it.text)}</div>`).join('');
+}
+if (toggleHistoryBtn && chatHistoryPanel) {
+  toggleHistoryBtn.onclick = () => {
+    const hidden = chatHistoryPanel.classList.toggle('hidden');
+    chatHistoryPanel.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+    if (!hidden) renderHistoryPanel();
+  };
+}
+if (clearHistoryBtn) {
+  clearHistoryBtn.onclick = () => {
+    saveHistory([]);
+    renderHistoryPanel();
+    // cũng dọn vùng chat hiện tại nếu muốn
+    // chatbotMessages.innerHTML = '';
+  };
+}
 
 function appendMessage(text, role = 'ai') {
   const div = document.createElement('div');
@@ -157,6 +221,10 @@ function appendMessage(text, role = 'ai') {
   div.textContent = text;
   chatbotMessages.appendChild(div);
   chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+  // lưu lịch sử
+  const hist = loadHistory();
+  hist.push({ role, text });
+  saveHistory(hist);
 }
 
 if (openChatbotBtn && chatbotBox) {
