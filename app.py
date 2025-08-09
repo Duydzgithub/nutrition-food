@@ -19,7 +19,15 @@ ALLOWED_ORIGINS = os.environ.get(
 # Hỗ trợ wildcard qua ENV: đặt ALLOWED_ORIGINS="*" để cho phép mọi origin (chỉ nên dùng tạm thời khi debug)
 _wildcard = any(o.strip() == '*' for o in ALLOWED_ORIGINS)
 ORIGINS_FOR_CORS = '*' if _wildcard else ALLOWED_ORIGINS
-CORS(app, resources={r"/*": {"origins": ORIGINS_FOR_CORS}}, supports_credentials=True)
+# Khi dùng wildcard, KHÔNG bật credentials để tránh xung đột trình duyệt
+CORS(
+    app,
+    resources={r"/*": {"origins": ORIGINS_FOR_CORS}},
+    supports_credentials=False if _wildcard else True,
+    methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+    max_age=86400,
+)
 
 # Lấy API keys từ ENV (không hardcode)
 COHERE_API_KEY = os.environ.get('COHERE_API_KEY', '')
@@ -142,9 +150,12 @@ def predict():
         print(f"[PREDICT] Lỗi tổng: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/chat', methods=['POST'])
+@app.route('/chat', methods=['POST', 'OPTIONS'])
 @cross_origin(origins=ORIGINS_FOR_CORS)  # Chỉ cho phép các origin cấu hình
 def chat():
+    # Trả nhanh cho preflight
+    if request.method == 'OPTIONS':
+        return ('', 204)
     data = request.get_json()
     user_message = data.get('message', '')
     if not user_message:
