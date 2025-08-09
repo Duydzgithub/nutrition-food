@@ -23,6 +23,15 @@ COHERE_API_KEY = os.environ.get('COHERE_API_KEY', '')
 PAT = os.environ.get('CLARIFAI_PAT', '')  # Clarifai PAT
 CALORIE_API_KEY = os.environ.get('CALORIE_API_KEY', '')
 
+# Health check / root endpoint (tránh 404 khi truy cập URL gốc trên Render)
+@app.route('/', methods=['GET'])
+def root():
+    return jsonify({
+        'status': 'ok',
+        'service': 'Nutrition Food API',
+        'endpoints': ['/predict (POST)', '/chat (POST)', '/ask_ai (POST)']
+    }), 200
+
 @app.route('/ask_ai', methods=['POST'])
 def ask_ai():
     data = request.get_json()
