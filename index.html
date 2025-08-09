@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FoodNinja - Nhận diện món ăn</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="modern.css" />
+</head>
+<body>
+  <div class="container">
+    <h1 class="title">🍽️ FoodNinja</h1>
+    <p class="subtitle">Nhận diện món ăn &amp; tư vấn dinh dưỡng hiện đại</p>
+
+    <div class="main-content">
+      <!-- Cột thao tác: Upload/Camera/Drag & Drop -->
+      <div class="action-col">
+        <div id="uploadBox" class="upload-box" tabindex="0" aria-label="Kéo thả hoặc chọn ảnh để nhận diện">
+          <span class="upload-icon" aria-hidden="true">📷</span>
+          <input type="file" id="imageInput" accept="image/*" capture="environment" class="hidden-input" />
+          <button id="uploadBtn" class="btn btn-accent" type="button">Tải ảnh lên</button>
+          <span class="or">hoặc</span>
+          <button id="cameraBtn" class="btn btn-main" type="button">Chụp ảnh</button>
+        </div>
+        <div class="help-text">Kéo & thả ảnh vào khung trên để nhận diện nhanh</div>
+
+        <div class="media-frame-wrapper">
+          <video id="video" class="hidden media-frame" autoplay playsinline muted></video>
+          <canvas id="canvas" class="hidden media-frame"></canvas>
+        </div>
+        <button id="captureBtn" class="btn btn-main hidden" type="button">Chụp</button>
+      </div>
+
+      <!-- Cột xem trước ảnh -->
+      <div class="preview-col">
+        <div id="imagePreview" class="image-preview" aria-label="Xem trước ảnh"></div>
+      </div>
+    </div>
+
+    <!-- Khu vực hiển thị kết quả -->
+    <div id="result" class="result-box" aria-live="polite"></div>
+  </div>
+
+  <!-- Chatbot nổi -->
+  <button id="openChatbot" class="chatbot-fab" title="Chat với AI" aria-label="Mở chatbot">💬</button>
+  <div id="chatbotBox" class="chatbot-box" role="dialog" aria-modal="true" aria-labelledby="chatbotTitle">
+    <div class="chatbot-header">
+      <span id="chatbotTitle">🤖 FoodNinja AI Chatbot</span>
+      <button id="closeChatbot" class="chatbot-close" aria-label="Đóng">×</button>
+    </div>
+    <div id="chatbotMessages" class="chatbot-messages">
+      <div class="chatbot-msg chatbot-msg-ai">Xin chào! Bạn muốn hỏi gì về ẩm thực, sức khỏe, công nghệ?</div>
+    </div>
+    <form id="chatbotForm" class="chatbot-form" autocomplete="off">
+      <input type="text" id="chatbotInput" class="chatbot-input" placeholder="Nhập câu hỏi cho AI..." required />
+      <button type="submit" class="btn btn-main">Gửi</button>
+    </form>
+  </div>
+
+  <!-- Optional: override API base in config.js by setting window.API_BASE -->
+  <script src="config.js" defer></script>
+  <script src="main.js" defer></script>
+</body>
+</html>
