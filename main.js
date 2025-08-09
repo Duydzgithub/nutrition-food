@@ -149,13 +149,60 @@ async function sendImage(blob) {
     if (data.error) {
       resultDiv.innerHTML = '<span style="color:#FF6347;">Lỗi: ' + escapeHtml(data.error) + '</span>';
     } else {
-      const prob = (data.probability || 0);
-      if (prob < 0.4) {
-        resultDiv.innerHTML = '<span style="color:#FF6347;">Không nhận diện được, vui lòng thử lại!</span>';
+      const prob = Number(data.probability || 0);
+      const minConf = (typeof data.min_confidence === 'number') ? data.min_confidence : 0.4;
+      // Nhánh báo cáo độ tin cậy thấp từ backend
+      if (data.low_confidence === true || prob < minConf) {
+        const alts = Array.isArray(data.alternatives) ? data.alternatives : [];
+        const tips = escapeHtml(data.message || `Nhận diện có độ tin cậy thấp (${(prob*100).toFixed(0)}% < ${(minConf*100).toFixed(0)}%). Hãy chụp ảnh rõ hơn hoặc thử lại.`).replace(/\n/g,'<br>');
+        const altsHtml = alts.length
+          ? `<div style="margin-top:8px"><b>Có thể là:</b> ${alts.map(a => `
+              <button class="alt-chip" data-name="${escapeHtml(a.name)}" style="margin:4px 6px 0 0; padding:6px 10px; border-radius:16px; border:1px solid #ccc; background:#f7f7f7; cursor:pointer;">
+                ${escapeHtml(a.name)} (${((Number(a.probability)||0)*100).toFixed(0)}%)
+              </button>
+            `).join('')}</div>`
+          : '';
+        const firstAlt = alts[0]?.name || data.food_name || '';
+        resultDiv.innerHTML = `
+          <div class="ai-answer-card" style="border-left:4px solid #FF9800;">
+            <div class="ai-answer-title">⚠️ Độ tin cậy thấp</div>
+            <div class="ai-answer-content">${tips}</div>
+            ${altsHtml}
+            <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+              ${firstAlt ? `<button id="askAIAltBtn" style="background:#4CAF50;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;">Hỏi AI về món “${escapeHtml(firstAlt)}”</button>` : ''}
+              <button id="retryBtn" style="background:#1976D2;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;">Chụp/Upload ảnh khác</button>
+            </div>
+            <div id="aiLowConfAnswer" style="margin-top:10px;"></div>
+          </div>
+        `;
+        // Lưu lịch sử
+        const altText = alts.map(a => `${a.name} (${((Number(a.probability)||0)*100).toFixed(0)}%)`).join(', ');
         pushGlobalHistory({
-          title: 'Không nhận diện được',
-          body: `Xác suất: ${(prob*100).toFixed(2)}%`,
+          title: `Độ tin cậy thấp (${(prob*100).toFixed(0)}% < ${(minConf*100).toFixed(0)}%)`,
+          body: altText ? `Gợi ý: ${altText}` : 'Hãy chụp lại ảnh rõ hơn.',
         });
+        // Sự kiện: chọn alternative
+        resultDiv.querySelectorAll('.alt-chip').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const name = btn.getAttribute('data-name') || '';
+            if (name) askAIFor(name);
+          });
+        });
+        // Sự kiện: hỏi AI cho firstAlt
+        const askBtn = document.getElementById('askAIAltBtn');
+        if (askBtn && firstAlt) {
+          askBtn.onclick = () => askAIFor(firstAlt);
+        }
+        // Sự kiện: retry
+        const retryBtn = document.getElementById('retryBtn');
+        if (retryBtn) {
+          retryBtn.onclick = () => {
+            // Focus vào input file nếu có
+            try { imageInput && imageInput.click(); } catch {}
+            // Hoặc mở camera nếu người dùng muốn
+            // cameraBtn?.click(); // để người dùng chủ động bấm
+          };
+        }
         return;
       }
       let html = `<b><span class=\"food-icon\">🍎</span> Món ăn:</b> <span style=\"color:#388E3C;\">${escapeHtml(data.food_name || '')}</span> <span style=\"font-size:0.95em;\">(Xác suất: ${(prob*100).toFixed(2)}%)</span><br>`;
@@ -187,6 +234,27 @@ async function sendImage(blob) {
     }
   } catch (e) {
     resultDiv.innerHTML = '<span style="color:#FF6347;">Lỗi kết nối server!</span>';
+  }
+}
+
+// Hỏi AI khi người dùng chọn một gợi ý trong trường hợp độ tin cậy thấp
+async function askAIFor(foodName) {
+  const container = document.getElementById('aiLowConfAnswer');
+  if (container) container.innerHTML = '<span class="spinner"></span> <span style="color:#4CAF50;">Đang hỏi AI...</span>';
+  try {
+    const url = API_BASE ? `${API_BASE}/ask_ai` : '/ask_ai';
+    const prompt = `Hãy phân tích ngắn gọn về giá trị dinh dưỡng, lợi ích và rủi ro (nếu có) của món ăn "${foodName}". Đưa lời khuyên ăn uống lành mạnh, hướng tới người tiêu dùng. (Không có dữ liệu định lượng, chỉ phân tích tổng quan)`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    const data = await res.json();
+    const text = (data && (data.result || data.error)) ? String(data.result || `Lỗi: ${data.error}`) : 'Không có trả lời.';
+    const html = escapeHtml(text).replace(/\n/g,'<br>');
+    if (container) container.innerHTML = `<div class="ai-answer-card"><div class="ai-answer-title">🤖 Gợi ý từ AI</div><div class="ai-answer-content">${html}</div></div>`;
+  } catch (e) {
+    if (container) container.innerHTML = '<span style="color:#FF6347;">Lỗi kết nối AI!</span>';
   }
 }
 
