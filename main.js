@@ -24,11 +24,24 @@ let imageBlob = null;
 let deferredPrompt = null;
 const installBanner = document.getElementById('installBanner');
 const installBtn = document.getElementById('installBtn');
+const installText = document.getElementById('installText');
 
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
   if (installBanner) installBanner.classList.remove('hidden');
+});
+// Fallback: nếu không có beforeinstallprompt (iOS Safari), gợi ý Add to Home Screen
+window.addEventListener('load', () => {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if (installBanner && !isStandalone) {
+    if (!deferredPrompt && isIOS) {
+      installBanner.classList.remove('hidden');
+      if (installText) installText.textContent = 'Trên iPhone, chọn Chia sẻ → Add to Home Screen để cài đặt ứng dụng';
+      if (installBtn) installBtn.style.display = 'none';
+    }
+  }
 });
 if (installBtn) {
   installBtn.onclick = async () => {
@@ -139,9 +152,13 @@ async function sendImage(blob) {
       const prob = (data.probability || 0);
       if (prob < 0.4) {
         resultDiv.innerHTML = '<span style="color:#FF6347;">Không nhận diện được, vui lòng thử lại!</span>';
+        pushGlobalHistory({
+          title: 'Không nhận diện được',
+          body: `Xác suất: ${(prob*100).toFixed(2)}%`,
+        });
         return;
       }
-      let html = `<b><span class="food-icon">🍎</span> Món ăn:</b> <span style="color:#388E3C;">${escapeHtml(data.food_name || '')}</span> <span style="font-size:0.95em;">(Xác suất: ${(prob*100).toFixed(2)}%)</span><br>`;
+      let html = `<b><span class=\"food-icon\">🍎</span> Món ăn:</b> <span style=\"color:#388E3C;\">${escapeHtml(data.food_name || '')}</span> <span style=\"font-size:0.95em;\">(Xác suất: ${(prob*100).toFixed(2)}%)</span><br>`;
       if (data.nutrition && data.nutrition.items && data.nutrition.items.length > 0) {
         html += '<b>🥗 Thông tin dinh dưỡng:</b><ul>';
         for (const [key, value] of Object.entries(data.nutrition.items[0])) {
@@ -162,6 +179,11 @@ async function sendImage(blob) {
         `;
       }
       resultDiv.innerHTML = html;
+      // lưu lịch sử nhận diện toàn cục
+      pushGlobalHistory({
+        title: `Món: ${data.food_name || ''} (${(prob*100).toFixed(2)}%)`,
+        body: data.ai_answer ? String(data.ai_answer) : 'Không có phân tích AI',
+      });
     }
   } catch (e) {
     resultDiv.innerHTML = '<span style="color:#FF6347;">Lỗi kết nối server!</span>';
@@ -178,9 +200,13 @@ const chatbotMessages = document.getElementById('chatbotMessages');
 const chatHistoryPanel = document.getElementById('chatHistoryPanel');
 const toggleHistoryBtn = document.getElementById('toggleHistory');
 const clearHistoryBtn = document.getElementById('clearHistory');
+const globalHistoryPanel = document.getElementById('globalHistoryPanel');
+const toggleGlobalHistoryBtn = document.getElementById('toggleGlobalHistory');
+const clearGlobalHistoryBtn = document.getElementById('clearGlobalHistory');
 
 // Chat history persistence in localStorage
 const CHAT_HISTORY_KEY = 'foodninja_chat_history_v1';
+const GLOBAL_HISTORY_KEY = 'foodninja_recognition_history_v1';
 function loadHistory() {
   try {
     const raw = localStorage.getItem(CHAT_HISTORY_KEY);
@@ -199,6 +225,32 @@ function renderHistoryPanel() {
   }
   chatHistoryPanel.innerHTML = items.map(it => `<div class="chatbot-msg ${it.role==='user'?'chatbot-msg-user':'chatbot-msg-ai'}">${escapeHtml(it.text)}</div>`).join('');
 }
+function loadGlobalHistory() {
+  try { const raw = localStorage.getItem(GLOBAL_HISTORY_KEY); return raw ? JSON.parse(raw) : []; } catch { return []; }
+}
+function saveGlobalHistory(items) {
+  try { localStorage.setItem(GLOBAL_HISTORY_KEY, JSON.stringify(items.slice(-100))); } catch {}
+}
+function renderGlobalHistory() {
+  if (!globalHistoryPanel) return;
+  const items = loadGlobalHistory();
+  if (items.length === 0) {
+    globalHistoryPanel.innerHTML = '<div style="color:#888;">Chưa có lịch sử nhận diện.</div>';
+    return;
+  }
+  globalHistoryPanel.innerHTML = items.map(it => `
+    <div class="history-item">
+      <div class="history-title">${escapeHtml(it.title || '')}</div>
+      <div class="history-body">${escapeHtml(String(it.body || '')).replace(/\n/g,'<br>')}</div>
+    </div>
+  `).join('');
+}
+function pushGlobalHistory(item) {
+  const items = loadGlobalHistory();
+  items.push({ ...item, time: Date.now() });
+  saveGlobalHistory(items);
+  if (globalHistoryPanel && !globalHistoryPanel.classList.contains('hidden')) renderGlobalHistory();
+}
 if (toggleHistoryBtn && chatHistoryPanel) {
   toggleHistoryBtn.onclick = () => {
     const hidden = chatHistoryPanel.classList.toggle('hidden');
@@ -212,6 +264,19 @@ if (clearHistoryBtn) {
     renderHistoryPanel();
     // cũng dọn vùng chat hiện tại nếu muốn
     // chatbotMessages.innerHTML = '';
+  };
+}
+if (toggleGlobalHistoryBtn && globalHistoryPanel) {
+  toggleGlobalHistoryBtn.onclick = () => {
+    const hidden = globalHistoryPanel.classList.toggle('hidden');
+    globalHistoryPanel.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+    if (!hidden) renderGlobalHistory();
+  };
+}
+if (clearGlobalHistoryBtn) {
+  clearGlobalHistoryBtn.onclick = () => {
+    saveGlobalHistory([]);
+    renderGlobalHistory();
   };
 }
 
