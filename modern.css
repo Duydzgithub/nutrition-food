@@ -368,6 +368,16 @@ body {
   color: var(--color-main, #4CAF50);
   font-size: 1.1em;
 }
+.chatbot-tools { display: flex; gap: 8px; padding: 8px 12px; }
+.btn-small { padding: 6px 10px; font-size: 0.9rem; }
+.chat-history {
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 8px 12px;
+  background: #fff;
+  border-top: 1px dashed #e0e0e0;
+  border-bottom: 1px dashed #e0e0e0;
+}
 .chatbot-close {
   background: none;
   border: none;
@@ -434,6 +444,23 @@ body {
 @media (max-width: 500px) {
   .chatbot-box { width: 100vw; min-width: 0; }
 }
+
+/* Install banner fixed bottom */
+.install-banner {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #ffffffcc;
+  backdrop-filter: blur(8px);
+  border-top: 1px solid #e0e0e0;
+  z-index: 200;
+}
+.install-text { font-size: 0.98rem; color: #333; }
+.btn-install { padding: 8px 14px; }
 
 /* Responsive */
 @media (max-width: 900px) {
