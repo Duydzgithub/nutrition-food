@@ -8,6 +8,8 @@ const API_BASE = (window.API_BASE !== undefined)
   : ((location.hostname === 'localhost' || location.hostname === '127.0.0.1')
       ? 'http://127.0.0.1:5000'
       : '');
+// Debug: xem frontend đang gọi API ở đâu
+try { console.log('[FoodNinja] API_BASE =', API_BASE || '(relative / same-origin)'); } catch (e) {}
 const imageInput = document.getElementById('imageInput');
 const uploadBtn = document.getElementById('uploadBtn');
 const cameraBtn = document.getElementById('cameraBtn');
