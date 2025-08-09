@@ -8,15 +8,18 @@ import asyncio
 
 
 app = Flask(__name__)
-# Giới hạn kích thước upload 5MB
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
+# Giới hạn kích thước upload 10MB (tránh ảnh điện thoại quá lớn gây lỗi)
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
 
 # Cấu hình CORS theo ENV (mặc định cho localhost)
 ALLOWED_ORIGINS = os.environ.get(
     'ALLOWED_ORIGINS',
     'http://localhost:5500,http://127.0.0.1:5500,http://localhost:5000,http://127.0.0.1:5000'
 ).split(',')
-CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}}, supports_credentials=True)
+# Hỗ trợ wildcard qua ENV: đặt ALLOWED_ORIGINS="*" để cho phép mọi origin (chỉ nên dùng tạm thời khi debug)
+_wildcard = any(o.strip() == '*' for o in ALLOWED_ORIGINS)
+ORIGINS_FOR_CORS = '*' if _wildcard else ALLOWED_ORIGINS
+CORS(app, resources={r"/*": {"origins": ORIGINS_FOR_CORS}}, supports_credentials=True)
 
 # Lấy API keys từ ENV (không hardcode)
 COHERE_API_KEY = os.environ.get('COHERE_API_KEY', '')
@@ -33,6 +36,7 @@ def root():
     }), 200
 
 @app.route('/ask_ai', methods=['POST'])
+@cross_origin(origins=ORIGINS_FOR_CORS)
 def ask_ai():
     data = request.get_json()
     prompt = data.get('prompt', '')
@@ -67,6 +71,7 @@ def ask_ai():
 MODEL_URL = "https://clarifai.com/clarifai/main/models/food-item-recognition"
 
 @app.route('/predict', methods=['POST'])
+@cross_origin(origins=ORIGINS_FOR_CORS)
 def predict():
     try:
         asyncio.set_event_loop(asyncio.new_event_loop())
@@ -138,7 +143,7 @@ def predict():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/chat', methods=['POST'])
-@cross_origin(origins=ALLOWED_ORIGINS)  # Chỉ cho phép các origin cấu hình
+@cross_origin(origins=ORIGINS_FOR_CORS)  # Chỉ cho phép các origin cấu hình
 def chat():
     data = request.get_json()
     user_message = data.get('message', '')
@@ -162,3 +167,10 @@ def chat():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
+
+# Xử lý lỗi file quá lớn (413) để trả JSON rõ ràng
+from werkzeug.exceptions import RequestEntityTooLarge
+
+@app.errorhandler(413)
+def handle_large_file(e: RequestEntityTooLarge):
+    return jsonify({'error': 'File quá lớn, tối đa 10MB'}), 413
