@@ -41,6 +41,13 @@
 
     <!-- Khu vực hiển thị kết quả -->
     <div id="result" class="result-box" aria-live="polite"></div>
+
+    <!-- Lịch sử nhận diện (toàn cục) -->
+    <div class="history-controls">
+      <button id="toggleGlobalHistory" class="btn btn-accent btn-small" type="button">Lịch sử nhận diện</button>
+      <button id="clearGlobalHistory" class="btn btn-accent btn-small" type="button">Xoá</button>
+    </div>
+    <div id="globalHistoryPanel" class="history-panel hidden" aria-hidden="true"></div>
   </div>
 
   <!-- Chatbot nổi -->
@@ -66,7 +73,7 @@
 
   <!-- Install banner (PWA) cố định dưới màn hình -->
   <div id="installBanner" class="install-banner hidden" role="region" aria-label="Cài đặt ứng dụng">
-    <div class="install-text">Cài đặt FoodNinja để dùng như ứng dụng</div>
+    <div class="install-text" id="installText">Cài đặt FoodNinja để dùng như ứng dụng</div>
     <button id="installBtn" class="btn btn-main btn-install" type="button">Tải ứng dụng</button>
   </div>
 
